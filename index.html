@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gatito — fiesta de cumpleaños</title>
+<meta name="theme-color" content="#000000">
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;height:100dvh;background:#000;overflow:hidden;overscroll-behavior:none}
+body{display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+main{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{display:block;width:min(100vw,100dvh);height:min(100vw,100dvh);max-width:100%;max-height:100%;aspect-ratio:1;object-fit:contain;image-rendering:pixelated;touch-action:none;outline:none;user-select:none;-webkit-user-select:none}
+@media (orientation:portrait){canvas{width:min(100vw,100dvh);height:min(100vw,100dvh)}}
+@media (orientation:landscape){canvas{width:min(100vw,100dvh);height:min(100vw,100dvh)}}
+@supports not (height:100dvh){html,body{height:100vh}canvas{width:min(100vw,100vh);height:min(100vw,100vh)}}
+button{position:fixed;right:16px;top:16px;background:#191919;color:#fff;border:1px solid #555;padding:9px 14px;border-radius:6px;font:13px system-ui;cursor:pointer}
+button[hidden]{display:none}
+#buttonModal[hidden]{display:none}
+#buttonModal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:rgba(0,0,0,.65);padding:22px;backdrop-filter:blur(5px)}
+#buttonDialog{width:min(90vw,380px);padding:28px 24px 22px;border-radius:18px;background:#242329;border:1px solid #66606a;box-shadow:0 20px 65px #000a;text-align:center;color:#fff}
+#buttonDialog p{font:600 19px/1.45 system-ui,sans-serif;margin:0 0 23px}
+#understood{position:static;display:block;width:100%;border:0;border-radius:11px;padding:13px 20px;background:#f1cf57;color:#282015;font:700 16px system-ui,sans-serif;cursor:pointer}
+#understood:active{transform:scale(.97)}
+
+/* Misiones: panel táctil independiente del canvas */
+#questButton{position:fixed;z-index:80;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));width:46px;height:46px;border:2px solid #fff9;border-radius:50%;background:#24212ce8;color:white;font-size:27px;font-weight:800;box-shadow:0 4px 16px #0009;cursor:pointer;touch-action:manipulation}
+#questButton:active{transform:scale(.93)}
+/* Indicador persistente, independiente de la iluminación del canvas */
+#questButton{z-index:120;background:#302b40;color:#fff;border-color:#f5dd9c;isolation:isolate;filter:brightness(1);animation:questGlow 2.8s ease-in-out infinite}
+@keyframes questGlow{0%,100%{box-shadow:0 0 0 2px rgba(246,213,126,.12),0 0 12px 2px rgba(246,213,126,.36),0 4px 16px #0009}50%{box-shadow:0 0 0 5px rgba(246,213,126,.13),0 0 25px 7px rgba(246,213,126,.65),0 4px 16px #0009}}
+@media(prefers-reduced-motion:reduce){#questButton{animation:none;box-shadow:0 0 15px 4px rgba(246,213,126,.55)}}
+#questPanel[hidden]{display:none!important}
+#questPanel{position:fixed;z-index:100;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:18px;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}
+#questCard{overscroll-behavior:contain;background:#171821;color:#fff;width:min(100%,440px);max-height:90dvh;overflow-y:auto;border:1px solid #ffffff2e;border-radius:20px;padding:22px;box-shadow:0 18px 65px #000b}
+#questHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+#questHeader h2{font-size:22px;margin:0}#questClose{position:static;flex-shrink:0;border:0;border-radius:10px;background:#363845;color:white;font-size:24px;width:40px;height:40px;padding:0;cursor:pointer}
+#questProgress{font-size:13px;color:#bfc4d2;margin:0 0 16px}#questTrack{height:7px;background:#343643;border-radius:9px;overflow:hidden;margin-bottom:18px}#questFill{height:100%;width:0;background:#efca64;transition:width .25s}
+#questList{list-style:none;padding:0;margin:0;display:grid;gap:9px}#questList li{display:flex;align-items:center;gap:12px;padding:12px;background:#242631;border-radius:12px;font-size:14px;line-height:1.35}
+.questMark{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;border:1px solid #717582;border-radius:50%;font-size:16px;font-weight:bold;color:#a9adbb}
+#questList li.completed .questMark{background:#4e8e68;border-color:#4e8e68;color:#fff}#questList li.completed .questText{color:#d6e5db}
+#questList .questText{flex:1}#questList .questCount{font-size:12px;color:#bdc3d0;white-space:nowrap}
+canvas:focus-visible{outline:2px solid #efca64;outline-offset:-2px}
+#muteBtn,#reset{position:fixed;z-index:80;top:max(12px,env(safe-area-inset-top));height:46px;border:2px solid #fff9;background:#24212ce8;color:#fff;cursor:pointer;box-shadow:0 4px 16px #0009;touch-action:manipulation}
+#muteBtn{right:calc(max(12px,env(safe-area-inset-right)) + 56px);width:46px;border-radius:50%;font-size:20px}
+#reset{right:calc(max(12px,env(safe-area-inset-right)) + 112px);border-radius:23px;padding:0 16px;font-weight:700}
+#hint{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translate(-50%,12px);background:#000c;color:#fff;padding:10px 18px;border-radius:999px;border:1px solid #fff3;font:600 14px system-ui,sans-serif;opacity:0;transition:.35s;pointer-events:none;z-index:70;max-width:92vw;text-align:center}
+#hint.on{opacity:1;transform:translate(-50%,0)}
+#toast{position:fixed;top:max(14px,env(safe-area-inset-top));left:50%;transform:translate(-50%,-90px);background:#2f7a52;color:#fff;padding:11px 20px;border-radius:14px;font:700 14px system-ui,sans-serif;transition:transform .4s cubic-bezier(.2,1.4,.4,1);z-index:90;pointer-events:none;box-shadow:0 8px 28px #000a}
+#toast.on{transform:translate(-50%,0)}
+#loader{position:fixed;inset:0;display:grid;place-items:center;background:#000;color:#fffa;font:600 15px system-ui,sans-serif;z-index:200;transition:opacity .5s}
+#questReset{position:static;margin-top:14px;width:100%;background:#363845;border:0;padding:11px;border-radius:10px;font-weight:600}
+#keys{font-size:12px;line-height:1.5;color:#aab;margin:14px 0 0}
+@media(max-width:420px){#reset{top:calc(max(12px,env(safe-area-inset-top)) + 56px);right:max(12px,env(safe-area-inset-right));height:38px;font-size:12px;padding:0 12px}#questCard{padding:18px;max-height:calc(100dvh - 32px)}#questList li{padding:10px;font-size:13px}#toast{top:calc(max(12px,env(safe-area-inset-top)) + 56px);max-width:90vw;text-align:center}}
+
+/* Continuidad ambiental para pantallas altas: fondo ampliado y desenfocado */
+body::before{content:"";position:fixed;inset:-75px;background-image:linear-gradient(180deg,rgba(0,0,0,.32),rgba(0,0,0,.08) 42%,rgba(0,0,0,.48)),url("fondo.webp");background-position:center;background-size:cover;filter:blur(42px) saturate(.85);transform:scale(1.13);pointer-events:none;z-index:0}
+main{position:relative;z-index:1}
+canvas{box-shadow:0 0 55px 24px rgba(0,0,0,.18);mask-image:linear-gradient(to bottom,transparent 0%,black 8%,black 92%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 8%,black 92%,transparent 100%)}
+#hint{bottom:max(22px,env(safe-area-inset-bottom));max-width:min(90vw,420px)}
+
+/* Pistas individuales, adaptadas a pantallas táctiles */
+.questHintBtn{position:static;flex:0 0 auto;min-width:65px;min-height:38px;padding:7px 10px;border:1px solid #c7a95b;border-radius:10px;background:#393324;color:#ffe5a1;font:700 12px system-ui,sans-serif;box-shadow:none;touch-action:manipulation}
+.questHintBtn[aria-expanded="true"]{background:#66532d;color:#fff}
+#questList li{flex-wrap:wrap}
+.questHintText{flex:0 0 100%;margin:0;padding:9px 11px;border-radius:9px;background:#161923;border-left:3px solid #efca64;color:#e5e6ee;font-size:13px;line-height:1.5}
+.questHintText[hidden]{display:none}
+
+/* Mensaje final: burbuja de diálogo integrada en el escenario */
+#finalSpeech{position:fixed;z-index:65;display:none;max-width:min(82vw,350px);min-width:210px;padding:16px 19px;border:3px solid #684c3b;border-radius:20px;background:#fff9e9;color:#493023;box-shadow:0 8px 0 #3b261b55,0 15px 35px #0007;font:700 clamp(15px,4vw,20px)/1.4 system-ui,sans-serif;text-align:center;pointer-events:none;transform:translate(-50%,-100%);white-space:pre-wrap}
+#finalSpeech.visible{display:block}
+#finalSpeech:after{content:'';position:absolute;bottom:-13px;left:50%;width:18px;height:18px;background:#fff9e9;border-right:3px solid #684c3b;border-bottom:3px solid #684c3b;transform:translateX(-50%) rotate(45deg)}
+#finalSpeech .speechCursor{display:inline-block;width:2px;height:1em;background:#684c3b;vertical-align:-.15em;animation:speechBlink .6s steps(1) infinite}
+@keyframes speechBlink{50%{opacity:0}}
+</style>
+</head>
+<body>
+<main>
+<canvas id="scene" width="720" height="720" role="img" aria-label="Gato pixelado. Arrastra el gorro hasta el gato para que lo agarre y se lo ponga. Con teclado, pulsa Enter." tabindex="0"></canvas>
+
+</main>
+<div id="finalSpeech" role="status" aria-live="polite"><span id="finalSpeechText"></span><span class="speechCursor" aria-hidden="true"></span></div>
+<div id="loader">Preparando la fiesta…</div><div id="hint" role="status" aria-live="polite"></div><div id="toast" role="status"></div>
+<button id="muteBtn" type="button" aria-label="Silenciar o activar sonido">🔊</button>
+<button id="reset" type="button" hidden>Quitar gorro</button>
+<div id="buttonModal" hidden role="dialog" aria-modal="true" aria-labelledby="lockMessage"><div id="buttonDialog"><p id="lockMessage">Primero tienes que vestir al gato de acuerdo a la ocasión.</p><button id="understood" type="button">Entendido</button></div></div>
+<button id="questButton" type="button" aria-label="Ver misiones" aria-haspopup="dialog" aria-controls="questPanel">?</button>
+<div id="questPanel" role="dialog" aria-modal="true" aria-labelledby="questTitle" hidden>
+ <section id="questCard"><div id="questHeader"><h2 id="questTitle">Misiones</h2><button id="questClose" type="button" aria-label="Cerrar misiones">×</button></div>
+ <p id="questProgress" aria-live="polite">0 de 6 completadas</p><div id="questTrack"><div id="questFill"></div></div><ul id="questList"></ul><button id="questReset" type="button">Reiniciar progreso</button></section>
+</div>
+<script>
+const files={cat:"gato.png",hat:"gorro.png"};
+const imgs={};for(const k in files){imgs[k]=new Image();imgs[k].src=files[k]}
+const backdrop=new Image();
+backdrop.src="escenario.webp";
+const canvas=document.getElementById('scene'),ctx=canvas.getContext('2d'),resetBtn=document.getElementById('reset'),hintEl=document.getElementById('hint');
+function resize(){const r=Math.min(innerWidth,innerHeight),d=window.devicePixelRatio||1;S=Math.max(8,Math.min(24,Math.round(r*d/W)));canvas.width=canvas.height=W*S}
+addEventListener('resize',resize);let loaderEl=document.getElementById('loader'),muted=false,bubble=null,signText='HAPPY BIRTHDAY';
+const BUB=['¡Miau!','¡Miau miau!','Prrr…','¿Hay pastel?','¡Feliz cumple!','♪ miau ♪'];
+
+/* ===== Escena: 90x90 "píxeles de arte", cada uno = 8 px en pantalla ===== */
+let S=8;const W=90,H=90;resize();
+// Escala uniforme del personaje, gorro y efectos interactivos.
+const CHARACTER_SCALE=.78, SCALE_CENTER={x:45,y:65};
+const CAT={x:32,y:28,w:26,h:58};
+const SH={x:52.5,y:56.5};            // hombro (brazo derecho del gato, a la derecha en pantalla)
+const REST={x:54,y:67};              // mano en reposo
+const HOME={x:63.5,y:76};              // gorro en el suelo (centro de la base)
+const HEAD={x:45,y:36},TF=-0.1;      // gorro puesto: centro de la base sobre la cabeza
+const GRAB={x:5,y:-.5};             // punto del gorro que agarra la pata (respecto a su base)
+const LMIN=9,LMAX=14;              // largo de cada segmento del brazo (se estira un poco al alcanzar)
+const CONF=['#ff5fa2','#4cc9f0','#ffd23f','#b57bff','#7cfc8a'];
+
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x)},easeOut=x=>1-Math.pow(1-clamp(x,0,1),3),easeIn=x=>{x=clamp(x,0,1);return x*x};
+const mix=(a,b,t)=>({x:lerp(a.x,b.x,t),y:lerp(a.y,b.y,t)});
+const add=(a,b)=>({x:a.x+b.x,y:a.y+b.y});
+const rot=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return{x:v.x*c-v.y*s,y:v.x*s+v.y*c}};
+const gripAt=(P,a)=>add(P,rot(GRAB,a));
+const pivotFor=(g,a)=>{const r=rot(GRAB,a);return{x:g.x-r.x,y:g.y-r.y}};
+const bez=(p0,p1,p2,p3,t)=>{const u=1-t,a=u*u*u,b=3*u*u*t,c=3*u*t*t,d=t*t*t;return{x:a*p0.x+b*p1.x+c*p2.x+d*p3.x,y:a*p0.y+b*p1.y+c*p2.y+d*p3.y}};
+const qbez=(p0,p1,p2,t)=>{const u=1-t;return{x:u*u*p0.x+2*u*t*p1.x+t*t*p2.x,y:u*u*p0.y+2*u*t*p1.y+t*t*p2.y}};
+const seg=(t,a,b)=>clamp((t-a)/(b-a),0,1);
+
+let state='idle',hat={x:HOME.x,y:HOME.y,a:0},drag=null,tween=null,anim=null,hop=null,parts=[],wobbleAt=-1e9,audio=null,lastSound=-1,nearCat=false;
+
+/* ===== Maullidos (24 variantes) ===== */
+function meow(){if(muted)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();let i=Math.floor(Math.random()*23);if(i>=lastSound)i++;lastSound=i;const t=audio.currentTime,dur=.27+(i%8)*.075,base=230+(i*59)%360;let osc=audio.createOscillator(),lfo=audio.createOscillator(),mod=audio.createGain(),gain=audio.createGain(),f=audio.createBiquadFilter();osc.type=i%3===0?'triangle':'sawtooth';osc.frequency.setValueAtTime(base,t);osc.frequency.exponentialRampToValueAtTime(base*(1.12+(i%5)*.07),t+dur*.3);osc.frequency.exponentialRampToValueAtTime(base*(.5+(i%4)*.08),t+dur);lfo.frequency.value=7+i%13;mod.gain.value=base*.023;lfo.connect(mod);mod.connect(osc.frequency);f.type='lowpass';f.frequency.value=1000+i%6*120;gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.10,t+.05);gain.gain.exponentialRampToValueAtTime(.0001,t+dur);osc.connect(f);f.connect(gain);gain.connect(audio.destination);osc.start(t);lfo.start(t);osc.stop(t+dur+.03);lfo.stop(t+dur+.03)}catch(e){}}
+
+
+/* Celebración original sintetizada: voz estilo "YAAAAAY", sin muestras de terceros. */
+const yaySound = new Audio("celebracion.mp3");
+yaySound.preload='auto';
+function cheerYay(){
+  try{ yaySound.pause(); yaySound.currentTime=0; yaySound.volume=.72; yaySound.play().catch(()=>{}); }catch(e){}
+}
+
+/* ===== Brazo articulado dibujado en píxeles (mismo grano que el sprite) ===== */
+const C={out:'#5b3424',outD:'#3a1f14',hi:'#f9c68a',base:'#f0b777',mid:'#dc9a56',phi:'#fff0d6',pbase:'#fbdcb0',pmid:'#eec08a',sep:'#b97d4e'};
+const px=(x,y,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,1,1)};
+function segInfo(x,y,a,b){const ax=b.x-a.x,ay=b.y-a.y,l2=ax*ax+ay*ay||1;const t=clamp(((x-a.x)*ax+(y-a.y)*ay)/l2,0,1);const cx=a.x+ax*t,cy=a.y+ay*t;return{d:Math.hypot(x-cx,y-cy),t,cx,cy}}
+function reachClamp(w,sh){const dx=w.x-sh.x,dy=w.y-sh.y,d=Math.hypot(dx,dy),m=2*LMAX-.3;return d>m?{x:sh.x+dx/d*m,y:sh.y+dy/d*m}:w}
+function drawArm(sh,wr,open,grip,pass){
+  const dx=wr.x-sh.x,dy=wr.y-sh.y,d=Math.hypot(dx,dy)||1;
+  const L=clamp(d*.6,LMIN,LMAX),r=Math.min(d,2*L-.01),base=Math.atan2(dy,dx),off=Math.acos(clamp(r/(2*L),-1,1));
+  const c1={x:sh.x+Math.cos(base+off)*L,y:sh.y+Math.sin(base+off)*L},c2={x:sh.x+Math.cos(base-off)*L,y:sh.y+Math.sin(base-off)*L};
+  const el=(c1.x+.5*c1.y>c2.x+.5*c2.y)?c1:c2;
+  const ux=wr.x-el.x,uy=wr.y-el.y,ul=Math.hypot(ux,uy)||1,u={x:ux/ul,y:uy/ul},v={x:-u.y,y:u.x};
+  const pc={x:wr.x+u.x*1.6,y:wr.y+u.y*1.6};
+  const toes=open>.08?[-1,0,1].map(k=>({x:pc.x+u.x*(2.3+open*.7)+v.x*k*(.9+open*.9),y:pc.y+u.y*(2.3+open*.7)+v.y*k*(.9+open*.9),r:1.1+open*.4})):[];
+  const pts=[sh,el,wr,pc,...toes];
+  const x0=Math.floor(Math.min(...pts.map(p=>p.x))-8),x1=Math.ceil(Math.max(...pts.map(p=>p.x))+8),y0=Math.floor(Math.min(...pts.map(p=>p.y))-8),y1=Math.ceil(Math.max(...pts.map(p=>p.y))+8);
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+    const cx=x+.5,cy=y+.5;
+    const s1=segInfo(cx,cy,sh,el),s2=segInfo(cx,cy,el,wr);
+    const v1=s1.d-lerp(3.4,3.1,s1.t),v2=s2.d-lerp(3.1,2.8,s2.t);
+    let armV=v1,ax=cx-s1.cx,ay=cy-s1.cy,ad=s1.d;
+    if(v2<armV){armV=v2;ax=cx-s2.cx;ay=cy-s2.cy;ad=s2.d}
+    let pawV=Math.hypot(cx-pc.x,cy-pc.y)-3.7;
+    for(const t of toes){const q=Math.hypot(cx-t.x,cy-t.y)-t.r;if(q<pawV)pawV=q}
+    const sdf=Math.min(armV,pawV);
+    if(sdf>0)continue;
+    if((pawV<=armV)!==(pass==='paw'))continue;
+    const inPaw=pawV<=-1&&pawV<armV+.6;
+    const nx=inPaw?cx-pc.x:ax,ny=inPaw?cy-pc.y:ay,nl=Math.hypot(nx,ny)||1;
+    if(sdf>-1){ // contorno
+      if(Math.hypot(cx-sh.x,cy-sh.y)<4.6)continue;
+      px(x,y,ny/nl>.3?C.outD:C.out);continue;
+    }
+    const light=(nx/nl)*-.55+(ny/nl)*-.83;
+    let col;
+    if(inPaw)col=light>.35?C.phi:light<-.45?C.pmid:C.pbase;
+    else{col=light>.35?C.hi:light<-.45?C.mid:C.base;if(col===C.base&&((x*7+y*13)%11===0))col=C.hi}
+    px(x,y,col);
+  }
+  if(pass==='paw'&&open<.6){for(const k of[-1,1]){const p={x:pc.x+u.x*2.2+v.x*k*1.05,y:pc.y+u.y*2.2+v.y*k*1.05};const X=Math.floor(p.x),Y=Math.floor(p.y);if(Math.hypot(X+.5-pc.x,Y+.5-pc.y)<3.4)px(X,Y,C.sep)}}
+}
+
+/* ===== Gato y gorro ===== */
+function drawCat(offY,bobH,blink){
+  const x=CAT.x,y=CAT.y+offY;
+  ctx.drawImage(imgs.cat,0,22,26,36,x,y+22,26,36);
+  ctx.drawImage(imgs.cat,0,0,26,22,x,y+bobH,26,22);
+  if(blink){const by=y+bobH;ctx.fillStyle='#fbd9ab';ctx.fillRect(x+7,by+14,4,3);ctx.fillStyle='#f3b873';ctx.fillRect(x+16,by+14,4,3);ctx.fillStyle='#5b3427';ctx.fillRect(x+7,by+15,4,1);ctx.fillRect(x+16,by+15,4,1)}
+}
+function drawHat(P,a,sq=1){ctx.save();ctx.translate(P.x,P.y);ctx.rotate(a);ctx.scale(1,sq);ctx.drawImage(imgs.hat,-7.5,-20,15,20);ctx.restore()}
+function burst(x,y,n,spread){for(let i=0;i<n;i++)parts.push({x:x+(Math.random()-.5)*8,y,vx:(Math.random()-.5)*spread*2,vy:-8-Math.random()*spread,c:CONF[i%CONF.length],life:1.5+Math.random()*.9,w:Math.random()<.5?2:1})}
+function twinkle(time,x,y){const ph=(time/1000)%1.6;if(ph>.45)return;const k=ph<.22?ph/.22:(.45-ph)/.23,n=Math.round(k*2);ctx.fillStyle='#fff';ctx.fillRect(Math.round(x),Math.round(y),1,1);for(let i=1;i<=n;i++){ctx.fillRect(Math.round(x)-i,Math.round(y),1,1);ctx.fillRect(Math.round(x)+i,Math.round(y),1,1);ctx.fillRect(Math.round(x),Math.round(y)-i,1,1);ctx.fillRect(Math.round(x),Math.round(y)+i,1,1)}}
+
+/* ===== Coreografía: agarra, levanta y se pone el gorro (≈5.4 s) ===== */
+const G0=gripAt(HOME,0),ANT={x:58,y:61},PRE=add(G0,{x:-7,y:-9});
+const HOVER=add(HEAD,{x:1,y:-3}),AH=-0.2,GH=gripAt(HOVER,AH),GHEAD=gripAt(HEAD,TF);
+const T_END=5300;
+function poseAnim(t){
+  let wrist=REST,P={...HOME},a=0,open=0,carry=false,sq=1,blink=false,bobH=0;
+  if(t<320){const s=smooth(seg(t,0,320));P=mix(anim.from,HOME,s);a=lerp(anim.fromA,0,s);blink=t>110&&t<230}
+  else if(t<620){const s=smooth(seg(t,320,620));wrist=mix(REST,ANT,s);open=.6*s}
+  else if(t<1180){const u=seg(t,620,1180);wrist=u<.55?mix(ANT,PRE,smooth(u/.55)):mix(PRE,G0,easeOut((u-.55)/.45));open=lerp(.6,1,smooth(u*2))}
+  else if(t<1380){const s=seg(t,1180,1380);wrist={x:G0.x,y:G0.y+.6*Math.sin(s*Math.PI)};open=1-easeOut(s)}
+  else if(t<2380){const s=seg(t,1380,2380),e=smooth(s);carry=true;
+    wrist=bez(G0,{x:G0.x+2,y:G0.y-16},{x:GH.x+11,y:GH.y+9},GH,e);
+    a=lerp(0,AH,e)+.22*(1-s)*Math.sin(s*Math.PI*2.4);}
+  else if(t<2950){const s=seg(t,2380,2950);carry=true;
+    P={x:HOVER.x+.8*Math.sin(s*Math.PI*2),y:HOVER.y-.6*Math.sin(s*Math.PI)};a=AH+(TF-AH)*smooth(s)+.05*Math.sin(s*Math.PI*3);wrist=gripAt(P,a);blink=t>2600&&t<2720}
+  else if(t<3400){const s=seg(t,2950,3400);carry=true;P=mix(HOVER,HEAD,easeIn(s));a=TF+(1-s)*(AH-TF)*.3;wrist=gripAt(P,a);if(s>.9)sq=.9;if(s>.95)bobH=1}
+  else if(t<4300){const u=seg(t,3400,4300),dip=Math.max(0,Math.sin(u*Math.PI*4));carry=true;P={x:HEAD.x,y:HEAD.y+.9*dip};a=TF+.03*Math.sin(u*Math.PI*4);wrist=gripAt(P,a);sq=1-.06*dip;bobH=dip>.5?1:0}
+  else{const s=seg(t,4300,T_END);P={...HEAD};a=TF+.08*Math.exp(-s*3)*Math.sin(s*16);wrist=qbez(GHEAD,{x:GHEAD.x+11,y:GHEAD.y+9},REST,smooth(s));open=lerp(.5,0,s);blink=t>4350&&t<4650;bobH=Math.floor(t/220)%2}
+  if(carry){wrist=reachClamp(wrist,SH);P=pivotFor(wrist,a)}
+  return{wrist,P,a,open,carry,sq,blink,bobH,grip:t>=1300&&t<4300};
+}
+
+
+/* ===== Fuegos artificiales pixel art y letrero de cumpleaños ===== */
+let celebrationAt=-1,fireworks=[],nextFirework=0;
+const FW_COLORS=['#ffda49','#ff64bf','#69e9ff','#b993ff','#83ff88','#ff8e4d'];
+function launchFirework(t,forced=false){
+ const x=13+Math.random()*64,y=12+Math.random()*37;
+ const color=FW_COLORS[Math.floor(Math.random()*FW_COLORS.length)];
+ const rays=[];const count=forced?20:16;
+ for(let j=0;j<count;j++){
+  const angle=j*Math.PI*2/count+(Math.random()-.5)*.15;
+  const speed=10+Math.random()*14;
+  rays.push({angle,speed,delay:Math.random()*.13,size:Math.random()<.3?2:1});
+ }
+ fireworks.push({x,y,start:t,color,rays,life:1.22});
+}
+function beginCelebration(t){
+ celebrationAt=t;fireworks=[];nextFirework=t;
+ launchFirework(t,true);launchFirework(t-130,true);
+}
+function drawFireworks(t){
+ if(celebrationAt<0)return;
+ const elapsed=(t-celebrationAt)/1000;
+ if(elapsed<8.2&&t>=nextFirework){launchFirework(t);nextFirework=t+250+Math.random()*260}
+ ctx.save();ctx.globalCompositeOperation='screen';
+ for(let i=fireworks.length-1;i>=0;i--){
+  const f=fireworks[i],age=(t-f.start)/1000;
+  if(age>f.life){fireworks.splice(i,1);continue}
+  for(const r of f.rays){
+   const a=age-r.delay;if(a<0)continue;
+   const d=r.speed*a*1.25;
+   const x=Math.round(f.x+Math.cos(r.angle)*d);
+   const y=Math.round(f.y+Math.sin(r.angle)*d+7*a*a);
+   const alpha=Math.max(0,1-a/(f.life-r.delay));
+   ctx.globalAlpha=alpha;ctx.fillStyle=f.color;
+   ctx.fillRect(x,y,r.size,r.size);
+   if(a>.18){ctx.globalAlpha=alpha*.35;ctx.fillRect(Math.round(x-Math.cos(r.angle)*3),Math.round(y-Math.sin(r.angle)*3),1,1)}
+  }
+ }
+ ctx.restore();
+}
+function drawBirthdaySign(t){
+ if(celebrationAt<0)return;
+ const elapsed=(t-celebrationAt)/1000;
+ if(elapsed>10.5)return;
+ let enter=smooth(elapsed/.75),leave=elapsed>9.5?1-smooth((elapsed-9.5)/1):1;
+ const alpha=enter*leave;
+ // Se dibuja a resolución completa para que el título sea grande y nítido.
+ ctx.save();ctx.setTransform(S/8,0,0,S/8,0,0);ctx.globalAlpha=alpha;
+ const bounce=elapsed<1.2?Math.sin(elapsed*16)*Math.exp(-elapsed*3)*12:0;
+ const y=118-105*(1-enter)+bounce;
+ const text=signText;
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 49px system-ui,Arial,sans-serif';
+ const width=ctx.measureText(text).width;
+ const boxW=Math.min(692,width+45),boxX=(720-boxW)/2;
+ ctx.fillStyle='rgba(35,12,69,.89)';ctx.fillRect(boxX,y-42,boxW,86);
+ ctx.lineWidth=5;ctx.strokeStyle='#ffcc53';ctx.strokeRect(boxX+2,y-40,boxW-4,82);
+ ctx.lineWidth=7;ctx.strokeStyle='#6b2c8d';ctx.strokeText(text,360,y+1);
+ ctx.fillStyle='#fff2a3';ctx.fillText(text,360,y);
+ // Pequeñas estrellas de 16 bits en las esquinas del cartel.
+ for(const x of [boxX+13,boxX+boxW-13])for(const yy of [y-27,y+28]){
+  ctx.fillStyle='#ffdd55';ctx.fillRect(x-3,yy-9,6,18);ctx.fillRect(x-9,yy-3,18,6)
+ }
+ ctx.restore();
+}
+
+
+/* ===== Pastel interactivo: sprite independiente y restauración del escenario ===== */
+const cakeSprite=new Image();cakeSprite.src='pastel.png';
+const cakeAudio=new Audio('pastel_interaccion.mp3');
+cakeAudio.preload='auto';cakeAudio.volume=.85;
+const CAKE={x:23.68421,y:36.10048,w:19.09091,h:19.37799};
+let cakeHover=false,cakeStart=-1,cakePhase='ready',cakeTouchFlash=-1e9;
+let cakeCrumbs=[];
+function cakeGlow(now){if(cakePhase!=='ready')return 0;const elapsed=(now%4800);const pulse=elapsed<1100?Math.pow(Math.sin(Math.PI*elapsed/1100),2):0;const touch=Math.max(0,1-(now-cakeTouchFlash)/360);return Math.max(cakeHover?0.95:0,pulse*.85,touch);}
+function makeCakeCrumbs(){cakeCrumbs=[];for(let i=0;i<24;i++){cakeCrumbs.push({x:CAKE.x+CAKE.w*(.18+Math.random()*.64),y:CAKE.y+CAKE.h*(.28+Math.random()*.6),vx:(Math.random()-.5)*13,vy:-4-Math.random()*11,life:.5+Math.random()*.65,c:['#ffce45','#ff5f91','#66d8ff','#e8b7fa','#f7dfba'][i%5]});}}
+function drawCakeCrumbs(dt){for(let i=cakeCrumbs.length-1;i>=0;i--){const p=cakeCrumbs[i];p.life-=dt;p.vy+=27*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.life<=0){cakeCrumbs.splice(i,1);continue;}ctx.globalAlpha=Math.min(1,p.life*2);ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),.65,.65);}ctx.globalAlpha=1;}
+const cakeEase=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+function cakeScale(now){
+ if(cakePhase==='ready')return 1;
+ const t=now-cakeStart;
+ if(t<420){const u=t/420;return 1+.16*Math.sin(Math.PI*u);}
+ if(t<1650){const u=cakeEase((t-420)/1230);return Math.max(0,1-u);}
+ if(t<3550)return 0;
+ if(t<4080){const u=(t-3550)/530;return 1.13*(1-Math.pow(1-u,3));}
+ if(t<4490){const u=(t-4080)/410;return 1+.13*Math.exp(-5*u)*Math.cos(u*11);}
+ cakePhase='ready';cakeHover=false;cakeTouchFlash=now;return 1;
+}
+function drawCake(now){
+ if(!cakeSprite.complete||!cakeSprite.naturalWidth)return;
+ const scale=cakeScale(now);if(scale<=.001)return;
+ const cx=CAKE.x+CAKE.w/2,cy=CAKE.y+CAKE.h*.88;
+ ctx.save();ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.translate(-cx,-cy);
+ // Resplandor amarillo sólo cuando se señala el pastel, sin cubrir su textura.
+ if(cakeGlow(now)>.01){
+  ctx.save();ctx.shadowColor='#ffe35a';ctx.shadowBlur=17;ctx.globalAlpha=cakeGlow(now)*.95;
+  ctx.filter='drop-shadow(0px 0px 4px #ffdc29) drop-shadow(0px 0px 3px #ffe85c)';
+  ctx.drawImage(cakeSprite,CAKE.x,CAKE.y,CAKE.w,CAKE.h);
+  ctx.restore();
+ }
+ ctx.drawImage(cakeSprite,CAKE.x,CAKE.y,CAKE.w,CAKE.h);
+ ctx.restore();
+}
+function cakeHit(p){
+ if(cakePhase!=='ready')return false;
+ const x=(p.x-CAKE.x)/CAKE.w,y=(p.y-CAKE.y)/CAKE.h;
+ // Área aproximada del contorno real: velas, niveles y plato.
+ return x>-.12&&x<1.12&&y>-.10&&y<1.12&&
+ (y>.70 || (y>.43&&x>.08&&x<.92) || (y>.21&&x>.15&&x<.85) || (y<=.21&&x>.25&&x<.75));
+}
+function eatCake(){
+ if(cakePhase!=='ready')return;
+ questComplete('cake');cakePhase='eating';cakeStart=performance.now();cakeHover=false;cakeTouchFlash=cakeStart;makeCakeCrumbs();
+ if(navigator.vibrate)try{navigator.vibrate(30)}catch(e){}
+ try{cakeAudio.pause();cakeAudio.currentTime=0;cakeAudio.play().catch(()=>{});}catch(e){}
+}
+function cakePoint(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*90/r.width,y:(e.clientY-r.top)*90/r.height};}
+
+
+/* ===== Fotografía de pared: interacción táctil estilo foto instantánea ===== */
+const wallPhoto=new Image();wallPhoto.src='foto.webp';
+const photoSound=new Audio('foto_interaccion.mp3');photoSound.preload='auto';
+const POSTER={x:6.3,y:25.1,w:7.2,h:18.5};
+let photoOpen=false,photoTransition=0,photoFrom=0,photoClosing=false,photoGlowTime=0;
+// Audio original recortado desde 1.45 s, sin recorte adicional al final.
+function photoHit(p){return p.x>=POSTER.x-2.5&&p.x<=POSTER.x+POSTER.w+2.5&&p.y>=POSTER.y-2&&p.y<=POSTER.y+POSTER.h+2;}
+function photoToggle(){
+ const now=performance.now();
+ if(photoOpen){if(photoClosing)return;photoClosing=true;photoFrom=now;}
+ else {questComplete('photo');photoOpen=true;photoClosing=false;photoFrom=now;try{photoSound.pause();photoSound.currentTime=0;photoSound.play().catch(()=>{})}catch(e){}}
+ if(navigator.vibrate)navigator.vibrate(20);
+}
+function drawWallPhoto(now){
+ const elapsed=now-photoFrom;
+ if(photoClosing&&elapsed>400){photoOpen=false;photoClosing=false;}
+ if(!photoOpen){
+   const u=now%5200;const glow=u<950?Math.sin(Math.PI*u/950)**2:0;
+   if(glow>.01){ctx.save();ctx.strokeStyle=`rgba(255,221,85,${glow*.85})`;ctx.shadowColor='#ffe36a';ctx.shadowBlur=12;ctx.lineWidth=.55;ctx.strokeRect(POSTER.x,POSTER.y,POSTER.w,POSTER.h);ctx.restore();}
+   return;
+ }
+ const t=Math.min(1,elapsed/(photoClosing?400:650));
+ const e=1-Math.pow(1-t,3);
+ const progress=photoClosing?1-e:e;
+ ctx.save();ctx.globalAlpha=progress*.78;ctx.fillStyle='#08060d';ctx.fillRect(0,0,W,H);ctx.restore();
+ // La foto parte del póster y se desplaza al centro como una instantánea física.
+ const scale=progress*(1+.07*Math.sin(Math.PI*progress));
+ const x=POSTER.x+(24-POSTER.x)*scale,y=POSTER.y+(7-POSTER.y)*scale;
+ const w=POSTER.w+(42-POSTER.w)*scale,h=POSTER.h+(73-POSTER.h)*scale;
+ const rot=(-.13)*(1-progress)+.025*progress;
+ ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(rot);
+ ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=3+progress*13;ctx.shadowOffsetY=2+progress*4;
+ ctx.fillStyle='#fffdf7';ctx.fillRect(-w/2,-h/2,w,h);
+ ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+ const border=Math.max(.65,w*.065),bottom=Math.max(1.5,h*.085);
+ const iw=w-2*border,ih=h-border-bottom;
+ if(wallPhoto.complete&&wallPhoto.naturalWidth){
+   const ar=wallPhoto.naturalWidth/wallPhoto.naturalHeight;
+   ctx.save();ctx.beginPath();ctx.rect(-w/2+border,-h/2+border,iw,ih);ctx.clip();
+   let dw=iw,dh=iw/ar;if(dh<ih){dh=ih;dw=ih*ar;}
+   ctx.imageSmoothingEnabled=true;ctx.drawImage(wallPhoto,-dw/2,-h/2+border+(ih-dh)/2,dw,dh);ctx.restore();
+ }
+ ctx.restore();
+ if(progress>.92){ctx.save();ctx.globalAlpha=Math.min(1,(progress-.92)*12)*.7;ctx.fillStyle='#fff';ctx.font='2px system-ui';ctx.textAlign='center';ctx.fillText('Toca para cerrar',45,85);ctx.restore();}
+}
+
+
+/* ===== Concierto del gato: audio aportado por el usuario ===== */
+const operaSound=new Audio('cancion_gato.mp3');
+operaSound.preload='auto';
+let singing=false,singStart=0;
+function stopSinging(){singing=false;operaSound.pause();operaSound.currentTime=0;}
+function toggleSinging(){
+ if(finalSpeechStarted)return;
+ if(singing){stopSinging();setHint('El gato dejó de cantar.');return;}
+ balloonSong.pause();singing=true;singStart=performance.now();operaSound.currentTime=0;operaSound.volume=.85;
+ operaSound.play().then(()=>questComplete('sing')).catch(()=>{singing=false;setHint('No se pudo reproducir el audio.');});
+ setHint('Cantando · Toca al gato para detenerlo.');
+ if(navigator.vibrate)navigator.vibrate(18);
+}
+operaSound.addEventListener('ended',()=>{singing=false;setHint('El gato terminó de cantar.');});
+const microphoneImage=new Image();
+microphoneImage.src='microfono.png';
+function drawMicrophone(t){
+  if(!microphoneImage.complete || !microphoneImage.naturalWidth)return;
+  // Fotografía real del micrófono, con fondo transparente. Posición ligeramente más baja.
+  ctx.save();
+  const pulse=singing ? .18*Math.sin(t*.011) : 0;
+  ctx.translate(0,pulse);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(microphoneImage,38.2,38.5,11.0,48.5);
+  ctx.restore();
+  ctx.imageSmoothingEnabled=false;
+}
+
+/* ===== Iluminación teatral durante la canción ===== */
+let stageDim=0;
+function drawStageLighting(dt){
+  // Transición suave de encendido/apagado sin afectar los sprites interactivos.
+  const target=(state==='done'&&singing)?1:0;
+  stageDim+=(target-stageDim)*Math.min(1,dt*(target?2.7:1.8));
+  if(stageDim<.002)return;
+  ctx.save();
+  // Atenuar la sala, pero conservar el centro iluminado.
+  ctx.fillStyle=`rgba(0,0,0,${.76*stageDim})`;
+  ctx.fillRect(0,0,W,H);
+  // Haz cálido del foco sobre el pastel y la mesa.
+  ctx.globalCompositeOperation='screen';
+  const cone=ctx.createRadialGradient(45,25,2,45,51,38);
+  cone.addColorStop(0,`rgba(255,160,65,${.33*stageDim})`);
+  cone.addColorStop(.5,`rgba(255,120,35,${.18*stageDim})`);
+  cone.addColorStop(1,'rgba(255,110,30,0)');
+  ctx.fillStyle=cone;ctx.fillRect(0,0,W,H);
+  // Haz de luz estrecho desde el plafón hacia el centro.
+  const beam=ctx.createLinearGradient(0,17,0,72);
+  beam.addColorStop(0,`rgba(255,195,100,${.34*stageDim})`);
+  beam.addColorStop(1,'rgba(255,150,60,0)');
+  ctx.fillStyle=beam;
+  ctx.beginPath();ctx.moveTo(43,17);ctx.lineTo(47,17);ctx.lineTo(70,72);ctx.lineTo(20,72);ctx.closePath();ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+  // Vignette marcada en los bordes como la referencia.
+  const vignette=ctx.createRadialGradient(45,45,12,45,45,69);
+  vignette.addColorStop(0,'rgba(0,0,0,0)');
+  vignette.addColorStop(.5,`rgba(0,0,0,${.20*stageDim})`);
+  vignette.addColorStop(1,`rgba(0,0,0,${.90*stageDim})`);
+  ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
+
+/* Botón rojo en la pared y lluvia ascendente de globos */
+const redButton={x:82,y:43,r:3.0};
+const balloonSong=new Audio('cancion_boton.mp3');
+balloonSong.preload='auto';
+// Fundido de la canción del botón rojo: comienza a los 10 s y termina a los 13 s.
+const BUTTON_SONG_VOLUME=.82, BUTTON_FADE_START=10, BUTTON_FADE_DURATION=3;
+let buttonFadeFrame=0;
+function updateButtonSongFade(){
+  if(balloonSong.paused){buttonFadeFrame=0;return;}
+  const elapsed=balloonSong.currentTime;
+  if(elapsed>=BUTTON_FADE_START+BUTTON_FADE_DURATION){
+    balloonSong.volume=0;balloonSong.pause();buttonFadeFrame=0;return;
+  }
+  const progress=Math.max(0,Math.min(1,(elapsed-BUTTON_FADE_START)/BUTTON_FADE_DURATION));
+  balloonSong.volume=BUTTON_SONG_VOLUME*(1-progress)*(1-progress);
+  buttonFadeFrame=requestAnimationFrame(updateButtonSongFade);
+}
+balloonSong.addEventListener('play',()=>{
+  if(buttonFadeFrame)cancelAnimationFrame(buttonFadeFrame);
+  buttonFadeFrame=requestAnimationFrame(updateButtonSongFade);
+});
+balloonSong.addEventListener('pause',()=>{
+  if(buttonFadeFrame)cancelAnimationFrame(buttonFadeFrame);
+  buttonFadeFrame=0;
+});
+
+/* Ambiente comprimido a cinco minutos; se repite sin cargar archivos externos. */
+const ambienceSound=new Audio('ambiente_5min.mp3');
+ambienceSound.loop=true;
+ambienceSound.preload='auto';
+const AMBIENCE_VOLUME=.14;
+const AMBIENCE_FADE_MS=1100;
+let ambienceFade=null,ambienceUnlocked=false,ambienceSuspended=false;
+function foregroundAudioActive(){return !operaSound.paused||!balloonSong.paused;}
+function fadeAmbience(target){
+  if(!ambienceUnlocked||ambienceSuspended)return;
+  if(ambienceFade)cancelAnimationFrame(ambienceFade);
+  const start=performance.now(),from=ambienceSound.volume;
+  if(target>0&&ambienceSound.paused){ambienceSound.play().catch(()=>{});}
+  function step(now){
+    const t=Math.min(1,(now-start)/AMBIENCE_FADE_MS);
+    const ease=t*t*(3-2*t);
+    ambienceSound.volume=Math.max(0,Math.min(1,from+(target-from)*ease));
+    if(t<1){ambienceFade=requestAnimationFrame(step)}
+    else {ambienceFade=null;if(target===0)ambienceSound.pause();}
+  }
+  ambienceFade=requestAnimationFrame(step);
+}
+function syncAmbience(){fadeAmbience(foregroundAudioActive()?0:AMBIENCE_VOLUME);}
+function unlockAmbience(){
+  if(ambienceUnlocked)return;
+  ambienceUnlocked=true;
+  ambienceSound.volume=0;
+  if(!foregroundAudioActive())fadeAmbience(AMBIENCE_VOLUME);
+}
+for(const a of [operaSound,balloonSong]){
+  a.addEventListener('play',syncAmbience);
+  a.addEventListener('pause',syncAmbience);
+  a.addEventListener('ended',syncAmbience);
+}
+document.addEventListener('pointerdown',unlockAmbience,{once:true,capture:true});
+document.addEventListener('keydown',unlockAmbience,{once:true,capture:true});
+
+let buttonPressedAt=-1,balloonStart=-1,balloonLast=0,balloons=[];
+const balloonColors=['#ff427a','#ffd02f','#4ad8fa','#8d55f5','#70df57','#ff9b2c','#ec52de'];
+function redButtonHit(p){return Math.abs(p.x-redButton.x)<5.4&&Math.abs(p.y-redButton.y)<9.2;}
+function activateRedButton(){
+ const now=performance.now();
+ if(state!=='done'){buttonModal.hidden=false;understood.focus();return;}
+ if(now-buttonPressedAt<700)return;
+ questComplete('button');stopSinging();buttonPressedAt=now;balloonStart=now;balloonLast=now;balloons=[];
+ try{balloonSong.pause();balloonSong.currentTime=0;balloonSong.volume=.82;balloonSong.play().catch(()=>{});}catch(e){}
+ // El YAY original acompaña el arranque de la lluvia de globos.
+ cheerYay();
+ if(navigator.vibrate)navigator.vibrate(35);
+}
+const buttonImage=new Image();
+buttonImage.src='boton_rojo.png';
+const buttonModal=document.getElementById('buttonModal');
+const understood=document.getElementById('understood');
+function closeButtonModal(){buttonModal.hidden=true;}
+understood.addEventListener('click',closeButtonModal);
+buttonModal.addEventListener('click',e=>{if(e.target===buttonModal)closeButtonModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!buttonModal.hidden)closeButtonModal();});
+function drawRedButton(now){
+ const elapsed=now-buttonPressedAt;
+ const press=elapsed>=0&&elapsed<230?Math.sin(Math.PI*elapsed/230):0;
+ const unlocked=state==='done';
+ ctx.save();ctx.translate(redButton.x,redButton.y);
+ // Placa vertical empotrada, sombra lateral y perspectiva suave sobre el muro.
+ ctx.fillStyle='rgba(0,0,0,.38)';ctx.beginPath();ctx.roundRect(-4.1,-8.4,9.2,17.6,1.4);ctx.fill();
+ ctx.fillStyle='#17191c';ctx.beginPath();ctx.roundRect(-4.2,-8.8,8.3,17,1.2);ctx.fill();
+ ctx.fillStyle='#44434a';ctx.fillRect(-3.7,-8.2,.65,15.7);
+ ctx.fillStyle='#26252a';ctx.fillRect(3.25,-8.2,.5,15.7);
+ ctx.strokeStyle='rgba(220,210,190,.20)';ctx.lineWidth=.35;ctx.strokeRect(-3.25,-7.8,6.5,15.0);
+ ctx.save();ctx.translate(0,press*.6);ctx.scale(1-press*.1,1-press*.03);
+ if(buttonImage.complete&&buttonImage.naturalWidth){ctx.rotate(-Math.PI/2);ctx.drawImage(buttonImage,-6.6,-3.0,13.2,6.0);}
+ else{ctx.fillStyle='#b71922';ctx.beginPath();ctx.ellipse(0,0,2.7,5.5,0,0,Math.PI*2);ctx.fill();}
+ ctx.restore();
+ ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(-2.8,-7.4,5.6,.3);
+ if(!unlocked){ctx.fillStyle='rgba(0,0,0,.15)';ctx.beginPath();ctx.ellipse(0,0,2.9,5.7,0,0,Math.PI*2);ctx.fill();}
+ ctx.restore();
+}
+
+function spawnBalloon(now){
+ const size=3.8+Math.random()*3.4;
+ balloons.push({x:3+Math.random()*84,y:H+size+Math.random()*16,r:size,
+ speed:10+Math.random()*10,phase:Math.random()*6.28,sway:1+Math.random()*2.5,
+ color:balloonColors[Math.floor(Math.random()*balloonColors.length)],born:now});
+}
+function drawRisingBalloons(now,dt){
+ if(balloonStart<0)return;
+ const elapsed=(now-balloonStart)/1000;
+ if(elapsed<13){
+  // Ráfaga inicial y flujo sostenido que llena la pantalla.
+  const rate=elapsed<5?22:elapsed<9?14:7;
+  const count=Math.min(7,Math.floor((now-balloonLast)/1000*rate));
+  for(let i=0;i<count;i++)spawnBalloon(now);
+  if(count)balloonLast+=count*1000/rate;
+ }
+ ctx.save();
+ for(let i=balloons.length-1;i>=0;i--){
+  const b=balloons[i];b.y-=b.speed*dt;
+  if(b.y<-b.r-8){balloons.splice(i,1);continue;}
+  const x=b.x+Math.sin(now*.0018+b.phase)*b.sway;
+  ctx.strokeStyle='rgba(245,225,245,.75)';ctx.lineWidth=.18;
+  ctx.beginPath();ctx.moveTo(x,b.y+b.r);ctx.quadraticCurveTo(x+1.2,b.y+b.r+3,x-.5,b.y+b.r+7);ctx.stroke();
+  ctx.fillStyle=b.color;ctx.beginPath();ctx.ellipse(x,b.y,b.r*.82,b.r,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.ellipse(x-b.r*.28,b.y-b.r*.35,b.r*.18,b.r*.28,-.35,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=b.color;ctx.beginPath();ctx.moveTo(x-1,b.y+b.r*.82);ctx.lineTo(x+1,b.y+b.r*.82);ctx.lineTo(x,b.y+b.r+1.6);ctx.fill();
+ }
+ ctx.restore();
+ if(elapsed>25&&!balloons.length)balloonStart=-1;
+}
+
+/* ===== Bucle de dibujo ===== */
+let last=0;
+function render(time){
+  requestAnimationFrame(render);
+  if(!(imgs.cat.complete&&imgs.cat.naturalWidth&&imgs.hat.complete&&imgs.hat.naturalWidth))return;
+  if(loaderEl){const l=loaderEl;loaderEl=null;l.style.opacity=0;setTimeout(()=>{l.remove();if(!initialQuestsShown){initialQuestsShown=true;openQuests();}},520)}
+  const dt=Math.min(.05,(time-(last||time))/1000);last=time;
+  if(typeof checkFinalSpeech==='function')checkFinalSpeech(time);
+  ctx.setTransform(S,0,0,S,0,0);ctx.imageSmoothingEnabled=false;
+  if(backdrop.complete && backdrop.naturalWidth){ctx.imageSmoothingEnabled=true;ctx.drawImage(backdrop,0,0,W,H);ctx.imageSmoothingEnabled=false}else{ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);}
+  drawCake(time);
+  drawCakeCrumbs(dt);
+  drawStageLighting(dt);
+  drawRedButton(time);
+  ctx.save();
+  ctx.translate(SCALE_CENTER.x,SCALE_CENTER.y);
+  ctx.scale(CHARACTER_SCALE,CHARACTER_SCALE);
+  ctx.translate(-SCALE_CENTER.x,-SCALE_CENTER.y);
+
+  let offY=0,bobH=0,blink=false,wrist={...REST},open=0,grip=false,sq=1,hatP={...hat},hatA=hat.a;
+  if(finalJumping){
+    // Saltos continuos al terminar de escribir el mensaje, con aterrizaje entre saltos.
+    const phase=((time-finalJumpStart)%620)/620;
+    offY=phase<.78?-Math.round(6*Math.sin(Math.PI*phase/.78)):0;
+  }else if(hop){const s=(time-hop.start)/450;if(s>=1)hop=null;else offY=-Math.round(hop.h*Math.sin(Math.PI*s))}
+  if(state==='anim'){
+    const t=time-anim.start,p=poseAnim(Math.min(t,T_END));
+    wrist=p.wrist;open=p.open;grip=p.grip;sq=p.sq;blink=p.blink;bobH=p.bobH;hatP=p.P;hatA=p.a;
+    if(t>=4300&&!anim.cheer){anim.cheer=true;cheerYay();signText='HAPPY BIRTHDAY';beginCelebration(time);burst(HEAD.x,HEAD.y-18,36,20);wobbleAt=time}
+    if(t>=T_END){questComplete('hat');state='done';anim=null;hat={x:HEAD.x,y:HEAD.y,a:TF};resetBtn.hidden=false;setHint('Gorro puesto.')}
+  }else{
+    bobH=Math.sin(time/650)>.35?1:0;blink=(time%3800)<130;
+    if(state==='done'){const w=(time-wobbleAt)/1000;hatP={x:HEAD.x,y:HEAD.y+offY};hatA=TF+(w<1.2?.1*Math.exp(-w*4)*Math.sin(w*22):0);wrist={x:REST.x,y:REST.y+offY}}
+    else{
+      if(tween){const s=(time-tween.start)/tween.dur;if(s>=1){hat={...tween.to};tween=null}else{const e=s<.6?smooth(s/.6)*1.08:1.08-.08*smooth((s-.6)/.4);hat={x:lerp(tween.from.x,tween.to.x,e),y:lerp(tween.from.y,tween.to.y,e),a:lerp(tween.from.a,tween.to.a,e)}}}
+      if(state==='drag'){hat.a+=(drag.tiltT-hat.a)*Math.min(1,dt*10);drag.tiltT*=Math.pow(.02,dt)}
+      hatP={x:hat.x,y:hat.y};hatA=hat.a;
+    }
+  }
+  const shoulder={x:SH.x,y:SH.y+(state==='anim'?0:offY)};
+  // Oscilación del personaje en su propio eje, de izquierda a derecha.
+  // Se aplica a cabeza, cuerpo, pata y gorro, pero no al escenario.
+  const singAngle=(state==='done'&&singing)?Math.sin((time-singStart)*.0038)*.105:0;
+  if(singAngle){ctx.save();ctx.translate(45,74);ctx.rotate(singAngle);ctx.translate(-45,-74);}
+  drawCat(state==='anim'?0:offY,bobH,blink);
+  if(state==='drag'||(state==='idle')){
+    if(nearCat&&state==='drag'){ctx.fillStyle='rgba(255,224,100,.55)';for(let x=CAT.x-2;x<=CAT.x+CAT.w+2;x+=2){ctx.fillRect(x,CAT.y-4,1,1);ctx.fillRect(x,CAT.y+CAT.h+1,1,1)}for(let y=CAT.y-4;y<=CAT.y+CAT.h+1;y+=2){ctx.fillRect(CAT.x-2,y,1,1);ctx.fillRect(CAT.x+CAT.w+2,y,1,1)}}
+  }
+  drawArm(shoulder,wrist,open,grip,'arm');
+  drawHat(hatP,hatA,sq);
+  if(state==='idle'&&!tween)twinkle(time,HOME.x+.5,HOME.y-20);
+  drawArm(shoulder,wrist,open,grip,'paw');
+  // confeti
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.vy+=45*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0||p.y>H){parts.splice(i,1);continue}ctx.fillStyle=p.c;ctx.fillRect(Math.floor(p.x),Math.floor(p.y),p.w,1)}
+  if(state==='done'&&singing)drawMicrophone(time);
+  if(singAngle)ctx.restore();
+  if(bubble){const a=(time-bubble.t)/1600;if(a>=1)bubble=null;else{ctx.save();ctx.globalAlpha=Math.min(1,(1-a)*3);ctx.font='700 3.4px system-ui,sans-serif';const w=ctx.measureText(bubble.s).width+4,x=62-w/2,y=33-a*3;ctx.fillStyle='#fffdf4';ctx.strokeStyle='#3a1f14';ctx.lineWidth=.35;ctx.beginPath();ctx.roundRect(x,y-3.6,w,6.2,2);ctx.fill();ctx.stroke();ctx.fillStyle='#3a1f14';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(bubble.s,62,y-.4);ctx.restore()}}
+  ctx.restore();
+  // Los fuegos y el letrero se renderizan sobre el escenario, sin escalar el gato.
+  drawFireworks(time);
+  drawBirthdaySign(time);
+  drawRisingBalloons(time,dt);
+  // Capa superior: la fotografía siempre cubre al gato, gorro y efectos.
+  drawWallPhoto(time);
+}
+requestAnimationFrame(render);
+
+
+/* Estado de las misiones, actualizado desde los eventos reales del juego. */
+const questState={cake:false,photo:false,meows:0,hat:false,button:false,sing:false};
+try{Object.assign(questState,JSON.parse(localStorage.getItem('gatoQuests_pages_v2')||'{}'))}catch(e){}
+let lastDone={},prevDone=0,ready=false,toastT;
+function toast(t){const el=document.getElementById('toast');el.textContent='✓ '+t;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2600)}
+function finale(){signText='¡MISIÓN CUMPLIDA!';beginCelebration(performance.now());cheerYay();burst(45,30,60,26);setHint('¡Completaste todas las misiones! 🎉')}
+const questItems=[['cake','Cómete el pastel'],['photo','Mira la foto en la pared'],['meows','Haz maullar al gato 10 veces'],['hat','Ponle el gorro al gato'],['button','Toca el botón en la pared'],['sing','Habla con el gato cuando tenga el gorro puesto']];
+const questHints={
+ cake:'Busca el pastel de cumpleaños en el escenario y tócalo.',
+ photo:'Hay una fotografía colgada en una de las paredes. Tócala para observarla.',
+ meows:'Toca al gato varias veces para escucharlo maullar. Necesitas diez maullidos.',
+ hat:'Busca el gorro de fiesta y arrástralo hasta la cabeza del gato.',
+ button:'Encuentra el botón rojo colocado en la pared. Primero debes vestir al gato para la ocasión.',
+ sing:'Cuando el gato tenga puesto su gorro, vuelve a tocarlo para hablar con él.'
+};
+let visibleQuestHint=null;
+let initialQuestsShown=false;
+const questPanel=document.getElementById('questPanel'),questButton=document.getElementById('questButton'),questClose=document.getElementById('questClose');
+function updateQuests(){
+ let complete=0;
+ document.getElementById('questList').innerHTML=questItems.map(([key,title])=>{
+  const done=key==='meows'?questState.meows>=10:questState[key];if(done)complete++;if(done&&!lastDone[key]){lastDone[key]=1;if(ready)toast(title)}
+  return `<li class="${done?'completed':''}"><span class="questMark">${done?'✓':'·'}</span><span class="questText">${title}</span>${key==='meows'?`<span class="questCount">${Math.min(10,questState.meows)}/10</span>`:''}<button type="button" class="questHintBtn" data-hint="${key}" aria-expanded="${visibleQuestHint===key}" aria-controls="hint-${key}">${visibleQuestHint===key?'Ocultar':'Pista'}</button><p class="questHintText" id="hint-${key}" ${visibleQuestHint===key?'':'hidden'}>${questHints[key]}</p></li>`;
+ }).join('');
+ document.getElementById('questProgress').textContent=`${complete} de ${questItems.length} completadas`;
+ document.getElementById('questFill').style.width=(complete/questItems.length*100)+'%';
+ try{localStorage.setItem('gatoQuests_pages_v2',JSON.stringify(questState))}catch(e){}
+ if(ready&&complete===questItems.length&&prevDone<questItems.length)finale();prevDone=complete;
+}
+function questComplete(key){if(!questState[key]){questState[key]=true;updateQuests()}}
+function openQuests(){if(!buttonModal.hidden)return;questPanel.hidden=false;updateQuests();questClose.focus()}
+function closeQuests(){questPanel.hidden=true;questButton.focus()}
+document.getElementById('questList').addEventListener('click',event=>{
+ const button=event.target.closest('.questHintBtn');
+ if(!button)return;
+ const key=button.dataset.hint;
+ visibleQuestHint=visibleQuestHint===key?null:key;
+ updateQuests();
+ const active=document.querySelector(`.questHintBtn[data-hint="${key}"]`);
+ if(active)active.focus({preventScroll:true});
+});
+questButton.addEventListener('click',openQuests);questClose.addEventListener('click',closeQuests);
+questPanel.addEventListener('click',e=>{if(e.target===questPanel)closeQuests()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!questPanel.hidden)closeQuests()});
+updateQuests();ready=true;
+
+
+/* Mensaje especial: aparece una sola vez por partida, cuando el gato vuelve a reposo. */
+const finalSpeech=document.getElementById('finalSpeech');
+const finalSpeechText=document.getElementById('finalSpeechText');
+const finalMessage='Feliz Cumple Leti, TQM primita <3';
+let finalSpeechStarted=false,finalSpeechTimer=null,finalIdleSince=0,finalLetterTimer=null;
+let finalJumping=false,finalJumpStart=0;
+function allQuestsFinished(){return questState.cake&&questState.photo&&questState.meows>=10&&questState.hat&&questState.button&&questState.sing}
+function finalCharacterSound(character,index){
+ if(muted||!character.trim()||!/[\p{L}\p{N}]/u.test(character))return;
+ try{
+  audio??=new(window.AudioContext||window.webkitAudioContext)();
+  if(audio.state==='suspended')audio.resume().catch(()=>{});
+  const t=audio.currentTime,osc=audio.createOscillator(),gain=audio.createGain(),filter=audio.createBiquadFilter();
+  osc.type='triangle';osc.frequency.setValueAtTime(410+(index%5)*31,t);
+  osc.frequency.exponentialRampToValueAtTime(290+(index%4)*28,t+.055);
+  filter.type='lowpass';filter.frequency.value=1250;
+  gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.055,t+.008);
+  gain.gain.exponentialRampToValueAtTime(.0001,t+.075);
+  osc.connect(filter);filter.connect(gain);gain.connect(audio.destination);
+  osc.start(t);osc.stop(t+.085);
+ }catch(e){}
+}
+function positionFinalSpeech(){
+ const r=canvas.getBoundingClientRect();
+ const x=r.left+r.width*.51,y=r.top+r.height*.35;
+ finalSpeech.style.left=Math.max(115,Math.min(innerWidth-115,x))+'px';
+ finalSpeech.style.top=Math.max(100,y)+'px';
+}
+function showFinalSpeech(){
+ if(finalSpeechStarted)return;
+ finalSpeechStarted=true;finalSpeechText.textContent='';positionFinalSpeech();finalSpeech.classList.add('visible');
+ let i=0;
+ function nextLetter(){
+  if(!finalSpeechStarted)return;
+  if(i>=finalMessage.length){finalSpeech.querySelector('.speechCursor').style.display='none';finalJumping=true;finalJumpStart=performance.now();hop=null;return}
+  const c=finalMessage[i];finalSpeechText.textContent+=c;finalCharacterSound(c,i);i++;
+  finalLetterTimer=setTimeout(nextLetter,/[,.]/.test(c)?220:55);
+ }
+ nextLetter();
+}
+function clearFinalSpeech(){
+ finalJumping=false;finalJumpStart=0;
+ finalSpeechStarted=false;finalIdleSince=0;clearTimeout(finalLetterTimer);finalSpeech.classList.remove('visible');
+ finalSpeech.querySelector('.speechCursor').style.display='inline-block';finalSpeechText.textContent='';
+}
+function checkFinalSpeech(time){
+ if(finalSpeechStarted){positionFinalSpeech();return}
+ const idle=allQuestsFinished()&&(state==='idle'||state==='done')&&!singing&&!drag&&!photoOpen&&!photoClosing&&questPanel.hidden&&buttonModal.hidden&&operaSound.paused&&balloonSong.paused;
+ if(!idle){finalIdleSince=0;return}
+ if(!finalIdleSince)finalIdleSince=time;
+ if(time-finalIdleSince>1100)showFinalSpeech();
+}
+window.addEventListener('resize',()=>{if(finalSpeechStarted)positionFinalSpeech()});
+
+/* ===== Interacción: ratón, táctil y teclado ===== */
+let hintT;function setHint(t){hintEl.textContent=t;hintEl.classList.add('on');clearTimeout(hintT);hintT=setTimeout(()=>hintEl.classList.remove('on'),7000)}
+
+function sp(e){const r=canvas.getBoundingClientRect();const x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;return{x:SCALE_CENTER.x+(x-SCALE_CENTER.x)/CHARACTER_SCALE,y:SCALE_CENTER.y+(y-SCALE_CENTER.y)/CHARACTER_SCALE}}
+const onHat=p=>p.x>=hat.x-9&&p.x<=hat.x+9&&p.y>=hat.y-22&&p.y<=hat.y+2;
+const inCat=p=>p.x>CAT.x-3&&p.x<CAT.x+CAT.w+3&&p.y>CAT.y-12&&p.y<CAT.y+CAT.h+2;
+function startAnim(){tween=null;anim={start:performance.now(),from:{x:hat.x,y:hat.y},fromA:hat.a,cheer:false};state='anim';meow()}
+function catClick(){if(state==='anim')return;if(state==='done'){toggleSinging();return;}questState.meows=Math.min(10,questState.meows+1);updateQuests();meow();bubble={t:performance.now(),s:BUB[Math.floor(Math.random()*BUB.length)]};hop={start:performance.now(),h:3}}
+canvas.addEventListener('pointerdown',e=>{if(!buttonModal.hidden||!questPanel.hidden){e.preventDefault();return;}if(photoOpen){photoToggle();e.preventDefault();return;}if(photoHit(cakePoint(e))){photoToggle();e.preventDefault();return;}if(cakeHit(cakePoint(e))){eatCake();e.preventDefault();return;}if(redButtonHit(cakePoint(e))){activateRedButton();e.preventDefault();return;}const p=sp(e);
+  if(state==='idle'&&onHat(p)){drag={id:e.pointerId,off:{x:p.x-hat.x,y:p.y-hat.y},px:p.x,tiltT:0};tween=null;state='drag';canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';e.preventDefault()}
+  else if(inCat(p)&&state!=='drag')catClick()});
+canvas.addEventListener('pointermove',e=>{if(!questPanel.hidden||!buttonModal.hidden)return;cakeHover=cakeHit(cakePoint(e));if(photoOpen||photoHit(cakePoint(e))){canvas.style.cursor='pointer';return;}const p=sp(e);
+  if(state==='drag'&&drag&&drag.id===e.pointerId){hat.x=clamp(p.x-drag.off.x,9,W-9);hat.y=clamp(p.y-drag.off.y,22,H-1);drag.tiltT=clamp(drag.tiltT+(p.x-drag.px)*.06,-.4,.4);drag.px=p.x;nearCat=inCat({x:hat.x,y:hat.y-10})||inCat(p)}
+  else canvas.style.cursor=(cakeHover||redButtonHit(cakePoint(e)))?'pointer':(state==='idle'&&onHat(p)?'grab':(state!=='drag'&&inCat(p)?'pointer':'default'))});
+function endDrag(e,cancel){if(state!=='drag'||!drag||drag.id!==e.pointerId)return;const p=sp(e),ok=!cancel&&(inCat({x:hat.x,y:hat.y-10})||inCat(p));drag=null;nearCat=false;canvas.style.cursor='default';
+  if(ok)startAnim();else{state='idle';tween={start:performance.now(),dur:420,from:{...hat},to:{x:HOME.x,y:HOME.y,a:0}}}}
+canvas.addEventListener('pointerleave',()=>{cakeHover=false});
+canvas.addEventListener('pointerup',e=>endDrag(e,false));
+canvas.addEventListener('pointercancel',e=>endDrag(e,true));
+canvas.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!questPanel.hidden||!buttonModal.hidden)return;if(state==='idle')startAnim();else if(state==='done')toggleSinging()}});
+function doReset(){if(state==='anim')return;if(!allQuestsFinished())clearFinalSpeech();stopSinging();balloonSong.pause();celebrationAt=-1;fireworks=[];parts=[];state='idle';tween={start:performance.now(),dur:500,from:{x:HEAD.x,y:HEAD.y,a:TF},to:{x:HOME.x,y:HOME.y,a:0}};hat={x:HEAD.x,y:HEAD.y,a:TF};resetBtn.hidden=true;setHint('Gorro retirado.')}
+resetBtn.addEventListener('click',doReset);
+/* ===== Sonido, atajos y progreso ===== */
+const AUDIOS=[yaySound,cakeAudio,photoSound,operaSound,balloonSong,ambienceSound],muteBtn=document.getElementById('muteBtn');
+function setMuted(m){muted=m;AUDIOS.forEach(a=>a.muted=m);muteBtn.textContent=m?'🔇':'🔊';try{localStorage.setItem('gatoMuted',m?'1':'0')}catch(e){}}
+try{setMuted(localStorage.getItem('gatoMuted')==='1')}catch(e){}
+muteBtn.addEventListener('click',()=>setMuted(!muted));
+document.getElementById('questReset').addEventListener('click',()=>{if(state==='anim')return;clearFinalSpeech();for(const k in questState)questState[k]=k==='meows'?0:false;lastDone={};prevDone=0;doReset();cakePhase='ready';cakeHover=false;photoOpen=false;photoClosing=false;balloonStart=-1;balloons=[];buttonPressedAt=-1;signText='HAPPY BIRTHDAY';updateQuests();closeQuests();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){ambienceSuspended=true;if(ambienceFade)cancelAnimationFrame(ambienceFade);AUDIOS.forEach(a=>a.pause());singing=false;}else{ambienceSuspended=false;ambienceSound.volume=0;if(ambienceUnlocked)syncAmbience();}});
+</script>
+</body>
+</html>
